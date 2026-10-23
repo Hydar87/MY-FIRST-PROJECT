@@ -1,24 +1,26 @@
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import axios from "../api/axios";
 
-export default function GuestRoute({ children }) {
+import { useEffect, useState } from "react";
+import { Navigate, Outlet } from "react-router-dom"; // 1. Import Outlet
+import axios from "../api/axios";
+import LoadingScreen from "./LoadingScreen";
+
+export default function GuestRoute() { // 2. Removed { children } prop
   const [status, setStatus] = useState("checking");
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function checkSession() {
-            try {
-              const response = await axios.post(
-                "/api/auth/refresh", 
-                {}, 
-                { withCredentials: true ,
-                  signal: controller.signal,
-
-                }
-              );
-  
+      try {
+        const response = await axios.post(
+          "/api/auth/refresh", 
+          {}, 
+          { 
+            withCredentials: true,
+            signal: controller.signal,
+          }
+        );
+ 
         if (response.status >= 200 && response.status < 300) {
           setStatus("authenticated");
         } else {
@@ -26,7 +28,11 @@ export default function GuestRoute({ children }) {
         }
       } catch (error) {
         if (error.name !== "AbortError") {
-          setStatus("error");
+          if (error.response && error.response.status === 401) {
+            setStatus("unauthenticated"); 
+          } else {
+            setStatus("error"); 
+          }
         }
       }
     }
@@ -37,8 +43,8 @@ export default function GuestRoute({ children }) {
   }, []);
 
   if (status === "checking") {
-    return <p>Checking session...</p>;
-  }
+     return <LoadingScreen />;
+      }
 
   if (status === "authenticated") {
     return <Navigate to="/userDashboard" replace />;
@@ -47,6 +53,7 @@ export default function GuestRoute({ children }) {
   if (status === "error") {
     return <p>Unable to verify your session. Please try again.</p>;
   }
-
-  return children;
+  
+  // 3. Render <Outlet /> so <Login /> or <Register /> displays correctly
+  return <Outlet />;
 }

@@ -260,13 +260,11 @@ const refreshToken =  async (req, res) => {
   try{ 
     //get refresh token from cookie
     const refreshToken = req.cookies?.refreshToken;    //check if refresh token is present
-    console.log("refreshToken :",refreshToken)
     if (!refreshToken) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
   await client.query('BEGIN'); // Start transaction
         const hashRefresh = hashToken(refreshToken);
-        console.log("refreshToken :",refreshToken)
         //check if refresh token is valid and exists in database
           const { rows } = await client.query(SQL`
                SELECT rf.public_id, rf.token, rf.expires_at, r.name AS role_name, u.email
@@ -286,18 +284,16 @@ const refreshToken =  async (req, res) => {
         const newAccessToken = generateAccessToken(user);
         const newRefreshToken = generateRefreshToken(user);
         const hashedToken = hashToken(newRefreshToken);
+                // 1. Delete any existing refresh token for this user first
+          await client.query(
+            SQL`DELETE FROM refresh_tokens WHERE token = ${hashRefresh}`
+          );
 
-        console.log("newRefreshToken :",newRefreshToken)
-       // 1. Delete any existing refresh token for this user first
-await client.query(
-  SQL`DELETE FROM refresh_tokens WHERE token = ${hashRefresh}`
-);
-
-// 2. Then insert the new refresh token safely
-await client.query(
-  SQL`INSERT INTO refresh_tokens (public_id, token) 
-      VALUES (${user.public_id}, ${hashedToken})`
-);
+          // 2. Then insert the new refresh token safely
+          await client.query(
+            SQL`INSERT INTO refresh_tokens (public_id, token) 
+                VALUES (${user.public_id}, ${hashedToken})`
+          );
             res.clearCookie('refreshToken', {
               httpOnly: true,
               secure: false, // Set to true if using HTTPS in production
