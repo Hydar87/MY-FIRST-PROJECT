@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import AuthContext, { AuthProvider } from "./context/AuthProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
+import GuestRoute from "./components/GuestRoute";
+
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -20,15 +22,19 @@ function App() {
             <AuthProvider>
                 <Routes>
                     {/*public routes*/}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
+
                     <Route path="/verifyEmail" element={<VerifyEmail />} />
                     <Route path="/forgotPassword" element={<ForgotPassword />} />
                     <Route path="/verifyResetCode" element={<VerifyResetCode />} />
-                    <Route path="/resetPassword" element={<ResetPassword />} />                   
+                    <Route path="/resetPassword" element={<ResetPassword />} />         
+
+                    {/*GuestRoute*/}        
+                    <Route element={<GuestRoute />} >
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    </Route>
 
                     {/*protectend routes*/}
-
                     <Route element={<ProtectedRoute />} >
                     <Route path="/userDashboard" element={<UserDashboard />} />
                     </Route>

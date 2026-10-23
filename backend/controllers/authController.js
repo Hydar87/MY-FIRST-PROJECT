@@ -260,11 +260,13 @@ const refreshToken =  async (req, res) => {
   try{ 
     //get refresh token from cookie
     const refreshToken = req.cookies?.refreshToken;    //check if refresh token is present
+    console.log("refreshToken :",refreshToken)
     if (!refreshToken) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
   await client.query('BEGIN'); // Start transaction
         const hashRefresh = hashToken(refreshToken);
+        console.log("refreshToken :",refreshToken)
         //check if refresh token is valid and exists in database
           const { rows } = await client.query(SQL`
                SELECT rf.public_id, rf.token, rf.expires_at, r.name AS role_name, u.email
@@ -285,6 +287,7 @@ const refreshToken =  async (req, res) => {
         const newRefreshToken = generateRefreshToken(user);
         const hashedToken = hashToken(newRefreshToken);
 
+        console.log("newRefreshToken :",newRefreshToken)
        // 1. Delete any existing refresh token for this user first
 await client.query(
   SQL`DELETE FROM refresh_tokens WHERE token = ${hashRefresh}`

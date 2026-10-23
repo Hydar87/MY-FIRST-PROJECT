@@ -5,7 +5,7 @@ import axios from '../../api/axios';
 import './Login.css';
 
 const VERIFY_CODE_URL = 'api/auth/verifycode'; // Matches your backend router path
-const RESEND_URL = '/forget'; // Matches your backend route to resend code
+const RESEND_URL = 'api/auth/forget'; // Matches your backend route to resend code
 
 const VerifyResetCode = () => {
     const location = useLocation();
