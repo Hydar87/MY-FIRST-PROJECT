@@ -10,7 +10,8 @@ const {
 
   // import emailService file function
 const { 
-  sendVerificationEmail 
+  sendVerificationEmail ,
+  sendForgotEmail,
 } = require("../services/emailService");
 
 // import token file function
@@ -344,7 +345,7 @@ try{
   await client.query(SQL`INSERT INTO forgot_passwords (public_id, code) VALUES (${user.public_id}, ${hashedCode})`);
    }
       //send email to user
-     await sendVerificationEmail(user.email, code);
+     await sendForgotEmail(user.email, code);
       await client.query('COMMIT'); // Commit both database inserts
     // 6. Response
     return res.status(200).json({ message: "A new verification code has been sent to your email.", requiresVerification: true});

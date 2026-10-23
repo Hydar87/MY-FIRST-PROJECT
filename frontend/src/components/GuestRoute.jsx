@@ -51,7 +51,8 @@ export default function GuestRoute() { // 2. Removed { children } prop
   }
 
   if (status === "error") {
-    return <p>Unable to verify your session. Please try again.</p>;
+    {/*return <p>Unable to verify your session. Please try again.</p>;*/}
+     return <LoadingScreen />;
   }
   
   // 3. Render <Outlet /> so <Login /> or <Register /> displays correctly

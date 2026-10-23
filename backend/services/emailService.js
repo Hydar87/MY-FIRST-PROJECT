@@ -11,10 +11,27 @@ async function sendVerificationEmail(email, code) {
     subject: "Verify your email",
     text: `Your verification code is ${code}.
 
-This code will expire in 5 minutes.`,
+This code will expire in 20 minutes.`,
   });
 }
 
+
+async function sendForgotEmail(email, code) {  
+  if (!email) {
+    throw new Error("Recipient email is missing!");
+  }
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Forgot Password",
+    text: `Your Forgot code is ${code}.
+
+This code will expire in 20 minutes.`,
+  });
+}
 module.exports = {
   sendVerificationEmail,
+  sendForgotEmail,
+
 };
