@@ -150,6 +150,50 @@ const passwordChangeSchema = Joi.object({
     }),
 });
 
+const stkPushValidationSchema = Joi.object({
+    phone: Joi.string().required().custom((value, helpers) => {
+        const cleaned = value.trim();
+
+        // 1. Check +254 or 254 format (Length should be <= 13 for +254, or <= 12 for 254)
+        if (cleaned.startsWith('+254') || cleaned.startsWith('254')) {
+            if (cleaned.length > 13) {
+                return helpers.error('string.max', { limit: 13 });
+            }
+            // Extract the digits after the country code
+            const localPart = cleaned.startsWith('+') ? cleaned.slice(4) : cleaned.slice(3);
+            // Must start with 7 or 1, followed by 8 digits (total 9 digits after 254)
+            if (!/^[17]\d{8}$/.test(localPart)) {
+                return helpers.error('any.invalid');
+            }
+        } 
+        // 2. Check 07 or 01 format (Local format, exactly 10 characters)
+        else if (cleaned.startsWith('07') || cleaned.startsWith('01')) {
+            if (cleaned.length !== 10) {
+                return helpers.error('string.length', { limit: 10 });
+            }
+            if (!/^(07|01)\d{8}$/.test(cleaned)) {
+                return helpers.error('any.invalid');
+            }
+        } else {
+            return helpers.error('any.invalid');
+        }
+
+        return cleaned; // Returns the validated phone string
+    }).messages({
+        'any.required': 'Phone number is required.',
+        'string.empty': 'Phone number cannot be empty.',
+        'string.max': 'International phone number cannot exceed 13 characters.',
+        'string.length': 'Local phone number must be 10 characters (e.g., 0712345678).',
+        'any.invalid': 'Invalid phone number format. Must start with 07, 01, 254, or +254.'
+    }),
+
+    packageId: Joi.string().required() // Assuming you also pass a package ID
+});
+
+module.exports = {
+    stkPushValidationSchema
+};
+
 
 
 module.exports = {

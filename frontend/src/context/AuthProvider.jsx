@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import axios from "../api/axios";
 
@@ -9,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [publicId, setPublicId] = useState(null);
   const [loadingData, setLoadingData] = useState(true);
 
-  // 🔒 Ref lock to prevent concurrent/duplicate refresh requests
+  // Ref lock to prevent concurrent/duplicate refresh requests
   const isRefreshingRef = useRef(false);
 
   const isAuthenticated = Boolean(token);
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     verifyAndRefreshToken();
-  }, []);
+  }, [2]);
 
   const login = (accessToken, userRole, userPublicId) => {
     if (!accessToken) {

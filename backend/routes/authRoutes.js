@@ -1,4 +1,5 @@
 const express = require("express");
+const router = express.Router();
 
 const { 
     register, 
@@ -25,15 +26,16 @@ const {
 const { validate} = require("../middleware/validate");
 const { ensureAuthenticated} = require("../middleware/authenticate");
 
+const { authLimiter, sensitiveActionLimiter } = require("../config/apiLimiter");
 
-const router = express.Router();
+router.post("/register",authLimiter, validate(registerSchema), register );
+router.post("/login",authLimiter, validate(loginSchema), login);
 
-router.post("/register", validate(registerSchema), register );
-router.post( "/resend-verification", validate(resendVerificationSchema), resendVerification );
+router.post( "/resend-verification",sensitiveActionLimiter, validate(resendVerificationSchema), resendVerification );
+router.post("/forget" ,sensitiveActionLimiter, validate(forgotPasswordSchema), forgotPassword);
+
 router.post("/verify-email", validate(verifyEmailSchema), verifyEmail);
-router.post("/login", validate(loginSchema), login);
 router.post("/refresh" ,refreshToken);
-router.post("/forget" ,validate(forgotPasswordSchema), forgotPassword);
 router.post("/verifycode", validate(verifypassCodeSchema), verifypassCode);
 router.post("/verifyFogotpass", validate(verifyFogotpasswordSchema),verifyFogotpassword );
 router.post("/change-password", validate(passwordChangeSchema),ensureAuthenticated, changePassword);

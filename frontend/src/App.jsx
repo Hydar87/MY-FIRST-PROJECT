@@ -13,6 +13,12 @@ import VerifyResetCode from "./pages/auth/VerifyResetCode";
 import ResetPassword from "./pages/auth/ResetPassword" 
 
 import UserDashboard from './pages/user/UserDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserDetails from './pages/admin/UserDetails';
+
+import DownloadButton from './pages/auth/Pdf'
+
+
 
 function App() {
    
@@ -26,7 +32,8 @@ function App() {
                     <Route path="/verifyEmail" element={<VerifyEmail />} />
                     <Route path="/forgotPassword" element={<ForgotPassword />} />
                     <Route path="/verifyResetCode" element={<VerifyResetCode />} />
-                    <Route path="/resetPassword" element={<ResetPassword />} />         
+                    <Route path="/resetPassword" element={<ResetPassword />} />  
+                    <Route path="/pdf" element={<DownloadButton />} />     
 
                     {/*GuestRoute*/}        
                     <Route element={<GuestRoute />} >
@@ -37,6 +44,10 @@ function App() {
                     {/*protectend routes*/}
                     <Route element={<ProtectedRoute />} >
                     <Route path="/userDashboard" element={<UserDashboard />} />
+                    <Route path="/adminDashboard" element={<AdminDashboard/>} />
+
+                    {/* Route matching http://localhost:5173/admin/users/:public_id */}
+                    <Route path="/admin/users/:public_id" element={<UserDetails />} />
                     </Route>
                                     
                 </Routes>

@@ -22,38 +22,40 @@ const {
 } = require("../utils/token");
 
 const { error } = require("console");
+
 // Register APIcd 
 const register = async (req, res) => {
   const client = await pool.connect();
+
   try {
     const { username, email, password } = req.body;
-    // 1. Check if email already exists
-    const { rows } = await pool.query(SQL`SELECT public_id FROM users WHERE email = ${email} `);
 
-    if (rows.length > 0) { return res.status(409).json({ message: "Email already exists"});}
-    // 2. Hash password
+    const { rows :exists } = await client.query(SQL`SELECT public_id FROM users WHERE email = ${email} `);
+
+    if (exists.length > 0) { return res.status(409).json({ message: "Email already exists"});}
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await client.query('BEGIN'); // Start transaction
-    // 4. Create user
-    const userResult = await client.query(SQL`INSERT INTO users ( email, username, password) VALUES (${email}, ${username}, ${hashedPassword}) 
+    await client.query('BEGIN');
+
+    const {rows} = await client.query(SQL`INSERT INTO users ( email, username, password) VALUES (${email}, ${username}, ${hashedPassword}) 
       RETURNING public_id, email `);
 
-      const newUser = userResult.rows[0];
+      const newUser = rows[0];
 
       await client.query(SQL`INSERT INTO user_roles (public_id, role_id) VALUES (${newUser.public_id}, 101)`) 
-    // 5. Generate verification code
-    const code = generateVerificationCode();
+
+      const code = generateVerificationCode();
     const hashedCode = hashCode(code);
 
-        // 6. Save verification code
     await client.query(SQL`INSERT INTO email_verifications (public_id, code) VALUES (${newUser.public_id}, ${hashedCode})`);
- 
-    // 7. Send verification email
-  await sendVerificationEmail(newUser.email, code);
-    await client.query('COMMIT'); // Commit both database inserts
+    
+    await client.query('COMMIT'); 
 
-    // 8. Response
+      sendVerificationEmail(newUser.email, code).catch((err) =>
+      console.error("Failed to send verification email:", err)
+    );
+
     return res.status(201).json({
       message: "User registered successfully. Please check your email for the verification code.",
       requiresVerification: true,
@@ -61,12 +63,12 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
-    if(client) { await client.query('ROLLBACK'); } // Rollback transaction on error
+    if(client) { await client.query('ROLLBACK'); }
 
     console.error("Registration error:", error);
     return res.status(500).json({message: "Internal server error"});
   }finally{
-    if(client) { client.release(); } // Release the client back to the pool
+    if(client) { client.release(); } 
   }
 };
 // Resend verification code
@@ -239,11 +241,14 @@ const login = async (req, res) => {
     });
 
     await client.query('COMMIT'); // Commit both database inserts
+    const userIp = req.ip;
+     
+    console.log("my ip",userIp)
     // 11. Return access token + user
     return res.status(200).json({
       message: "Login successful",
       accessToken,
-      user: { publicId: user.public_id, name: user.name, email: user.email, role: user.role, }
+      user: { publicId: user.public_id, name: user.name, email: user.email, role: user.role }
     });
 
   } catch (error) {

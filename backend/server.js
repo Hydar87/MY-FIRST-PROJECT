@@ -2,12 +2,16 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+const requestLogger = require("./middleware/requestLogger");
+const apiLimiter = require("./config/apiLimiter");     // Import global rate limiter
+
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
 
 const app = express();
+app.use(requestLogger);
 
 app.use(cors({
     origin: "http://localhost:5173", // Replace with your frontend URL port if different

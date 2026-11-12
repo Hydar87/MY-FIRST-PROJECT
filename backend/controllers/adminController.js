@@ -52,7 +52,7 @@ const getUserById = async (req, res) => {
 
     // Fetch single user with their role joined
     const { rows } = await pool.query(
-      SQL`SELECT u.public_id, u.email,u.username u.created_at, u.active, r.name AS role
+      SQL`SELECT u.public_id, u.email,u.username, u.created_at, u.active, r.name AS role
            FROM users u
            LEFT JOIN user_roles ur ON u.public_id = ur.public_id
            LEFT JOIN roles r ON ur.role_id = r.role_id
