@@ -43,7 +43,6 @@ function App() {
                     {/*protectend routes*/}
                     <Route element={<ProtectedRoute />} >
                     <Route path="/userDashboard" element={<UserDashboard />} />
-                    <Route path="/adminDashboard" element={<AdminDashboard/>} />
 
                     {/* Route matching http://localhost:5173/admin/users/:public_id */}
                     <Route path="/admin/users/:public_id" element={<UserDetails />} />
