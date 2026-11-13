@@ -13,7 +13,6 @@ import VerifyResetCode from "./pages/auth/VerifyResetCode";
 import ResetPassword from "./pages/auth/ResetPassword" 
 
 import UserDashboard from './pages/user/UserDashboard';
-import AdminDashboard from './pages/admin/AdminDashboard';
 import UserDetails from './pages/admin/UserDetails';
 
 import DownloadButton from './pages/auth/Pdf'
