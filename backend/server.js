@@ -10,7 +10,7 @@ const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
 
-const app = express();
+const app = express();s
 app.use(requestLogger);
 
 app.use(cors({
