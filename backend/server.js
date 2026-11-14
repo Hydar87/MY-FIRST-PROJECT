@@ -14,8 +14,13 @@ const app = express();
 app.use(requestLogger);
 
 app.use(cors({
+<<<<<<< HEAD
     origin: "http://localhost:5173",
     "https://my-first-project.hydarzuma.workers.dev",// Replace with your frontend URL port if different
+=======
+    origin: ["http://localhost:5173", 
+      "https://my-first-project.hydarzuma.workers.dev"], // Replace with your frontend URL port if different
+>>>>>>> 4e47521 (Update CORS configuration for frontend origin)
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
@@ -34,3 +39,8 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+<<<<<<< HEAD
+=======
+
+sb_secret_WfT3KiKbPM5T6ISsK087Jg_aDbOal7E
+>>>>>>> 4e47521 (Update CORS configuration for frontend origin)
