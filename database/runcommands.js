@@ -1,24 +1,43 @@
-// test-db.js
-const { Client } = require('pg');
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const client = new Client({
-  user: process.env.DB_USER ,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: String(process.env.DB_PASSWORD), // Forces string type
-  port: Number(process.env.DB_PORT),
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-async function testConnection() {
+async function readAllUsers() {
   try {
-    await client.connect();
-    console.log('db connected successfull');
+    // Query to select all users (excluding the password hash for security)
+    const query = `
+      SELECT id, public_id, email, username, created_at, updated_at 
+      FROM users;
+    `;
+
+    const result = await pool.query(query);
+
+    console.log(`\n📋 Found ${result.rows.length} user(s) in the database:\n`);
+    
+    // Print each row neatly
+    result.rows.forEach((user, index) => {
+      console.log(`--- User #${index + 1} ---`);
+      console.log(`  ID:         ${user.id}`);
+      console.log(`  Public ID:  ${user.public_id}`);
+      console.log(`  Username:   ${user.username}`);
+      console.log(`  Email:      ${user.email}`);
+      console.log(`  Created At: ${user.created_at}\n`);
+    });
+
   } catch (err) {
-    console.error('db connection failed:', err.message);
+    console.error('❌ Failed to read data:', err.message);
   } finally {
-    await client.end();
+    await pool.end();
   }
 }
 
-testConnection();
+readAllUsers();
