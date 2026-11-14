@@ -43,4 +43,3 @@ app.listen(PORT, () => {
 =======
 
 sb_secret_WfT3KiKbPM5T6ISsK087Jg_aDbOal7E
->>>>>>> 4e47521 (Update CORS configuration for frontend origin)

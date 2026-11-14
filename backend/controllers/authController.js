@@ -48,7 +48,8 @@ const register = async (req, res) => {
       const code = generateVerificationCode();
     const hashedCode = hashCode(code);
 
-    await client.query(SQL`INSERT INTO email_verifications (public_id, code) VALUES (${newUser.public_id}, ${hashedCode})`);
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+    await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${newUser.public_id}, ${hashedCode}, ${expiresAt})`);
     
     await client.query('COMMIT'); 
 
@@ -95,11 +96,14 @@ const resendVerification = async (req, res) => {
   // 1. Check if a code record already exists for this public_id
     const { rows: existingCodes } = await pool.query(SQL`SELECT public_id FROM email_verifications WHERE public_id = ${user.public_id}`);
 
+    const updatedAt = new Date(Date.now());
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+    
    if (existingCodes.length > 0) {
-   await client.query(SQL` UPDATE email_verifications SET code = ${hashedCode} WHERE public_id = ${user.public_id} `);
+   await client.query(SQL` UPDATE email_verifications SET code = ${hashedCode}, expires_at = ${expiresAt}, updated_at = ${updatedAt} WHERE public_id = ${user.public_id} `);
     } else {
   // Insert new verification code
-  await client.query(SQL`INSERT INTO email_verifications (public_id, code) VALUES (${user.public_id}, ${hashedCode})`);
+  await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${user.public_id}, ${hashedCode}, ${expiresAt})`);
    }
     // 5. Send the new code
   await sendVerificationEmail(user.email, code);
@@ -137,7 +141,7 @@ const  verifyEmail= async (req, res) => {
 
     const user = rows[0];
     // 2. Check if email is already verified
-    if (user.is_verified === 1) { return res.status(400).json({ message: "Email is already verified" }); }
+    if (user.is_verified === true) { return res.status(400).json({ message: "Email is already verified" }); }
     
     // 3. Get the verification record
     const {rows: verifications}  = await client.query(SQL`SELECT * FROM email_verifications WHERE public_id = ${user.public_id}`);
@@ -155,8 +159,9 @@ const  verifyEmail= async (req, res) => {
 
     if (expiry[0].expired === 1) { return res.status(400).json({ message: "Verification code has expired. Please request a new code."});}
 
+    const updatedAt = new Date(Date.now());
     // 6. Mark user's email as verified
-    await client.query(SQL`UPDATE users SET is_verified = 1 WHERE public_id = ${user.public_id}`);
+    await client.query(SQL`UPDATE users SET is_verified = true, updated_at = ${updatedAt} WHERE public_id = ${user.public_id}`);
     await client.query(SQL` DELETE FROM email_verifications WHERE public_id = ${user.public_id}`);
 
         // 5. Generate access token
@@ -164,7 +169,8 @@ const  verifyEmail= async (req, res) => {
      const refreshToken = generateRefreshToken();
      const hashedToken = hashToken(refreshToken);
      
-     await client.query(SQL`INSERT INTO refresh_tokens (public_id, token) VALUES (${user.public_id}, ${hashedToken})`,);
+     const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 2 days
+     await client.query(SQL`INSERT INTO refresh_tokens (public_id, token, expires_at) VALUES (${user.public_id}, ${hashedToken}, ${expiresAt})`,);
 
     // 10. Send refresh token as HttpOnly cookie
     res.cookie("refreshToken", refreshToken, {
@@ -201,8 +207,8 @@ const login = async (req, res) => {
     
     // 1. Find user
     await client.query('BEGIN'); // Start transactionconst 
-    const { rows: exists } = await pool.query(
-      SQL`SELECT u.public_id, u.email, u.password, u.active, u.is_verified, r.name AS role
+    const { rows: exists } = await client.query(
+      SQL`SELECT u.public_id, u.email, u.password, u.is_active, u.is_verified, r.name AS role
            FROM users u
            LEFT JOIN user_roles ur ON u.public_id = ur.public_id
            LEFT JOIN roles r ON ur.role_id = r.role_id
@@ -217,12 +223,12 @@ const login = async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) { return res.status(401).json({message: "Invalid email or password"});}
     
-    if (user.active !== 1) {
+    if (user.is_active !== true) {
             return res.status(403).json({ message: "Your email is inactive. Contact support Dest to activate", requiresSupportDesk: true});
     }
 
     // 4. Check email verification
-    if (user.is_verified !== 1) {
+    if (user.is_verified !== true) {
       return res.status(403).json({ message: "Your email is not verified. Please verify your account to log in.", requiresVerification: true});
     }
     // 5. Generate access token
@@ -230,7 +236,9 @@ const login = async (req, res) => {
      const refreshToken = generateRefreshToken();
      const hashedToken = hashToken(refreshToken);
      
-     await client.query(SQL`INSERT INTO refresh_tokens (public_id, token) VALUES (${user.public_id}, ${hashedToken})`,);
+     const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 2 days
+     
+    await client.query(SQL`INSERT INTO refresh_tokens (public_id, token, expires_at) VALUES (${user.public_id}, ${hashedToken}, ${expiresAt})`);
 
     // 10. Send refresh token as HttpOnly cookie
     res.cookie("refreshToken", refreshToken, {
