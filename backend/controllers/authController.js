@@ -273,7 +273,7 @@ const refreshToken =  async (req, res) => {
   const client = await pool.connect(); // Get a client from the pool
   try{ 
     //get refresh token from cookie
-    const refreshToken = req.cookies?.refreshToken;    //check if refresh token is present
+    const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -291,23 +291,22 @@ const refreshToken =  async (req, res) => {
 
         if (rows.length === 0) {return res.status(403).json({ message: 'Forbidden' }); }
        const user = rows[0];
-      const {rows: expiry} = await client.query(SQL`SELECT CURRENT_TIMESTAMP > ${user.expires_at} AS expired`);
 
-      if (expiry[0].expired === 1) { return res.status(400).json({ message: "Verification code has expired. Please request a new code." }); }
+       const currentTime= new Date(Date.now());
+       const expiresAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // 2 days
+
+      if (currentTime > user.expires_at ) { return res.status(400).json({ message: "Verification code has expired. Please request a new code." }); }
         // create a new access token
         const newAccessToken = generateAccessToken(user);
         const newRefreshToken = generateRefreshToken(user);
         const hashedToken = hashToken(newRefreshToken);
-                // 1. Delete any existing refresh token for this user first
-          await client.query(
-            SQL`DELETE FROM refresh_tokens WHERE token = ${hashRefresh}`
-          );
+                // 1. Delete any existing refresh token for this user firs
 
           // 2. Then insert the new refresh token safely
           await client.query(
-            SQL`INSERT INTO refresh_tokens (public_id, token) 
-                VALUES (${user.public_id}, ${hashedToken})`
+            SQL`UPDATE refresh_tokens SET token= ${hashedToken},updated_at = ${currentTime}, expires_at = ${expiresAt} WHERE token = ${hashRefresh}`
           );
+
             res.clearCookie('refreshToken', {
               httpOnly: true,
               secure: false, // Set to true if using HTTPS in production
