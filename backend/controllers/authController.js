@@ -349,16 +349,22 @@ try{
 
       // 1. Check if a code record already exists for this public_id
     const { rows: existingCodes } = await client.query(SQL`SELECT public_id FROM forgot_passwords WHERE public_id = ${user.public_id}`);
-   if (existingCodes.length > 0) {
+        
+      const currentTime = new Date();
+      const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+
+    if (existingCodes.length > 0) {
   // Update existing verification code
-   await client.query(SQL` UPDATE forgot_passwords SET code = ${hashedCode} WHERE public_id = ${user.public_id} `);
+   await client.query(SQL` UPDATE forgot_passwords SET code = ${hashedCode} , updated_at=${currentTime}, expires_at=${expiresAt} WHERE public_id = ${user.public_id} `);
     } else {
   // Insert new verification code
-  await client.query(SQL`INSERT INTO forgot_passwords (public_id, code) VALUES (${user.public_id}, ${hashedCode})`);
+  //await client.query(SQL`INSERT INTO forgot_passwords (public_id, code, expires_at) VALUES (${user.public_id}, ${hashedCode}, ${expiresAt}`);
+  await client.query(SQL`INSERT INTO forgot_passwords (public_id, code, expires_at) VALUES (${user.public_id}, ${hashedCode}, ${expiresAt})`);
    }
-      //send email to user
-     await sendForgotEmail(user.email, code);
       await client.query('COMMIT'); // Commit both database inserts
+
+           await sendForgotEmail(user.email, code);
+
     // 6. Response
     return res.status(200).json({ message: "A new verification code has been sent to your email.", requiresVerification: true});
    
