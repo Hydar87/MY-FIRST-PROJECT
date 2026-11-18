@@ -23,62 +23,6 @@ const {
 
 const { error } = require("console");
 
-/* Register APIcd 
-const register = async (req, res) => {
-  const client = await pool.connect();
-
-  try {
-    const { username, email, password } = req.body;
-
-    const { rows :exists } = await client.query(SQL`SELECT public_id FROM users WHERE email = ${email} `);
-
-    if (exists.length > 0) { return res.status(409).json({ message: "Email already exists"});}
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await client.query('BEGIN');
-
-    const {rows} = await client.query(SQL`INSERT INTO users ( email, username, password) VALUES (${email}, ${username}, ${hashedPassword}) 
-      RETURNING public_id, email `);
-
-      const newUser = rows[0];
-
-      await client.query(SQL`INSERT INTO user_roles (public_id, role_id) VALUES (${newUser.public_id}, 101)`) 
-
-      const code = generateVerificationCode();
-    const hashedCode = hashCode(code);
-
-    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
-    await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${newUser.public_id}, ${hashedCode}, ${expiresAt})`);
-    
-    await client.query('COMMIT'); 
-client.release();
-
-      //await sendVerificationEmail(newUser.email, code);
-      //.catch((err) =>
-      //console.error("Failed to send verification email:", err));
-        try {
-      await sendVerificationEmail(newUser.email, code);
-      } catch (emailError) {
-    console.error("Failed to send verification email:", emailError);
-      }
-    
-    return res.status(201).json({
-      message: "User registered successfully. Please check your email for the verification code.",
-      requiresVerification: true,
-      user: { publicId: newUser.public_id, email: newUser.email }
-    });
-
-  } catch (error) {
-    if(client) { await client.query('ROLLBACK'); }
-
-    console.error("Registration error:", error);
-    return res.status(500).json({message: "Internal server error"});
-  }finally{
-    if(client) { client.release(); } 
-  }
-};
-*/
 const register = async (req, res) => {
   const client = await pool.connect();
   let released = false; // Track release state
@@ -181,9 +125,14 @@ const resendVerification = async (req, res) => {
   // Insert new verification code
   await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${user.public_id}, ${hashedCode}, ${expiresAt})`);
    }
+     await client.query('COMMIT'); // Commit both database inserts
+
     // 5. Send the new code
-  await sendVerificationEmail(user.email, code);
-  await client.query('COMMIT'); // Commit both database inserts
+    try{
+       await sendVerificationEmail(user.email, code);
+  } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+    }
     // 6. Response
     return res.status(200).json({ message: "A new verification code has been sent to your email.", requiresVerification: true });
 
@@ -222,22 +171,19 @@ const  verifyEmail= async (req, res) => {
     // 3. Get the verification record
     const {rows: verifications}  = await client.query(SQL`SELECT * FROM email_verifications WHERE public_id = ${user.public_id}`);
 
-    const incomingcode = hashCode(code);
-
     if (verifications.length === 0) { return res.status(404).json({ message: "Verification code not found"});}
 
+       const incomingcode = hashCode(code);
     const verification = verifications[0];
-    // 4. Check if code is correct
+
     if (verification.code !== incomingcode) { return res.status(400).json({message: "Invalid verification code" });}
 
-    // 5. Check if code has expired
-      const { rows: expiry } = await client.query(SQL`SELECT CURRENT_TIMESTAMP > ${verification.expires_at} AS expired`);
-
-    if (expiry[0].expired === 1) { return res.status(400).json({ message: "Verification code has expired. Please request a new code."});}
-
-    const updatedAt = new Date(Date.now());
+    const currentTime = new Date(Date.now());
+    if(currentTime > verification.expires_at){
+      return res.status(400).json({ message: "Verification code has expired. Please request a new code."});
+    }
     // 6. Mark user's email as verified
-    await client.query(SQL`UPDATE users SET is_verified = true, updated_at = ${updatedAt} WHERE public_id = ${user.public_id}`);
+    await client.query(SQL`UPDATE users SET is_verified = true, updated_at = ${currentTime} WHERE public_id = ${user.public_id}`);
     await client.query(SQL` DELETE FROM email_verifications WHERE public_id = ${user.public_id}`);
 
         // 5. Generate access token
@@ -477,9 +423,10 @@ const verifypassCode = async (req, res) => {
         }
 
         const record = exists[0];
+        const currentTime = new Date(Date.now());
 
         // 4. Check if the code has expired
-        if (new Date() > new Date(record.expires_at)) {
+        if (currentTime > record.expires_at) {
             return res.status(400).json({ message: "Verification code has expired" });
         }
 
@@ -502,13 +449,18 @@ const verifyFogotpassword = async (req , res) =>{
     const user = rows[0];
     const hashedCode = hashCode(code);
 
+          await client.query('BEGIN'); // Start transaction
      const { rows: records} = await client.query(SQL`SELECT * FROM forgot_passwords  WHERE public_id = ${user.public_id} AND code = ${hashedCode} AND expires_at > NOW()`);
     if (records.length === 0) { return res.status(400).json({ message: "Invalid or expired code" }); }
 
-      await client.query('BEGIN'); // Start transaction
+    const currentTime = new Date(Date.now());
+    const record = records[0];
+    if(currentTime > record.expires_at){
+      return res.status(400).json({message:"verification code has expired . request for another code"})
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await client.query(SQL`UPDATE users SET password = ${hashedPassword} WHERE public_id = ${user.public_id}`);
+    await client.query(SQL`UPDATE users SET password = ${hashedPassword} , updated_at = ${currentTime} WHERE public_id = ${user.public_id}`);
 
     // 5. Delete the used code so it can never be reused
     await client.query(SQL`DELETE FROM forgot_passwords WHERE public_id = ${user.public_id}`);
@@ -541,11 +493,13 @@ const changePassword = async (req , res) =>{
     if (!isMatch) { return res.status(401).json({ message: "Incorrect current password" });}
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    await client.query(SQL`UPDATE users SET password = ${hashedPassword} WHERE public_id = ${userId}`);
+    const currentTime = new Date(Date.now());
+    await client.query(SQL`UPDATE users SET password = ${hashedPassword}, updated_at = ${currentTime} WHERE public_id = ${userId}`);
 
  // 6. Revoke all active sessions across devices
     await client.query(SQL`DELETE FROM refresh_tokens WHERE public_id = ${userId}`);
+
+        await client.query('COMMIT'); 
 
     // 7. Clear the active refresh token cookie on current client
     res.clearCookie("refreshToken", { 
@@ -554,7 +508,7 @@ const changePassword = async (req , res) =>{
       secure: "false",
       sameSite: "strict"
     });
-        await client.query('COMMIT'); // Commit both database updated
+    // Commit both database updated
 
     return res.status(200).json({
       message: "Password changed successfully. Please log in again with your new password.",
