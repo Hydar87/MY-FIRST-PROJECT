@@ -23,7 +23,7 @@ const {
 
 const { error } = require("console");
 
-// Register APIcd 
+/* Register APIcd 
 const register = async (req, res) => {
   const client = await pool.connect();
 
@@ -52,11 +52,17 @@ const register = async (req, res) => {
     await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${newUser.public_id}, ${hashedCode}, ${expiresAt})`);
     
     await client.query('COMMIT'); 
+client.release();
 
-      sendVerificationEmail(newUser.email, code).catch((err) =>
-      console.error("Failed to send verification email:", err)
-    );
-
+      //await sendVerificationEmail(newUser.email, code);
+      //.catch((err) =>
+      //console.error("Failed to send verification email:", err));
+        try {
+      await sendVerificationEmail(newUser.email, code);
+      } catch (emailError) {
+    console.error("Failed to send verification email:", emailError);
+      }
+    
     return res.status(201).json({
       message: "User registered successfully. Please check your email for the verification code.",
       requiresVerification: true,
@@ -70,6 +76,76 @@ const register = async (req, res) => {
     return res.status(500).json({message: "Internal server error"});
   }finally{
     if(client) { client.release(); } 
+  }
+};
+*/
+const register = async (req, res) => {
+  const client = await pool.connect();
+  let released = false; // Track release state
+
+  try {
+    const { username, email, password } = req.body;
+
+    const { rows: exists } = await client.query(SQL`SELECT public_id FROM users WHERE email = ${email} `);
+
+    if (exists.length > 0) { 
+      // Release client before returning early
+      client.release();
+      released = true;
+      return res.status(409).json({ message: "Email already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(SQL`INSERT INTO users (email, username, password) VALUES (${email}, ${username}, ${hashedPassword}) RETURNING public_id, email`);
+
+    const newUser = rows[0];
+
+    await client.query(SQL`INSERT INTO user_roles (public_id, role_id) VALUES (${newUser.public_id}, 101)`); 
+
+    const code = generateVerificationCode();
+    const hashedCode = hashCode(code);
+
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000);
+    await client.query(SQL`INSERT INTO email_verifications (public_id, code, expires_at) VALUES (${newUser.public_id}, ${hashedCode}, ${expiresAt})`);
+    
+    await client.query('COMMIT'); 
+
+    // Release the client back to the pool immediately after commit
+    client.release();
+    released = true;
+
+    // Send email outside the transaction/database lifecycle
+    try {
+      await sendVerificationEmail(newUser.email, code);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+    }
+
+    return res.status(201).json({
+      message: "User registered successfully. Please check your email for the verification code.",
+      requiresVerification: true,
+      user: { publicId: newUser.public_id, email: newUser.email }
+    });
+
+  } catch (error) {
+    if (client && !released) { 
+      try {
+        await client.query('ROLLBACK'); 
+      } catch (rollbackErr) {
+        // Ignore rollback errors if connection is already dead
+      }
+    }
+
+    console.error("Registration error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+
+  } finally {
+    if (client && !released) { 
+      client.release(); 
+    } 
   }
 };
 // Resend verification code
