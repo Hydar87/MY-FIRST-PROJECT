@@ -63,6 +63,7 @@ const stkPush = async (req, res) => {
             );
 
 
+        console.log("🔥🔥 RENDER STK PUSH ROUTE EXECUTED 🔥🔥");
         return res.status(200).json({
             message: "STK Push initiated successfully",
 
