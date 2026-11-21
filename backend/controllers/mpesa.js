@@ -5,8 +5,10 @@ const {normalizePhone} = require("../utils/nomalizePhoneNo");
 const stkPush = async (req, res) => {
     try {
 
-        const { phoneNumber, amount , purpose  } = req.body;
+        const { phoneNumber, amount  } = req.body;
         const formattedPhone = normalizePhone(phoneNumber);
+
+        const purpose = "subscribe";
 
         const token = await getAccessToken();
 
@@ -97,6 +99,7 @@ const mpesaCallback = async (req, res) => {
             ResultDesc
         } = callback;
 
+        console.log("\n========== M-PESA CALLBACK ==========");
         console.log("MerchantRequestID:", MerchantRequestID);
         console.log("CheckoutRequestID:", CheckoutRequestID);
         console.log("ResultCode:", ResultCode);
@@ -120,27 +123,12 @@ const mpesaCallback = async (req, res) => {
             console.log("Phone:", phoneNumber);
             console.log("Date:", transactionDate);
 
-            const purpose = "subscribe";
-
-            switch (purpose) {
-
-                case "subscribe":
-                    console.log("Customer wants to subscribe");
-                    break;
-
-                case "buy":
-                    console.log("Customer purchased a device");
-                    break;
-
-                default:
-                    console.log("Unknown payment purpose");
-            }
-
         } else {
             console.log("Payment failed or cancelled");
             console.log("Reason:", ResultDesc);
         }
 
+        console.log("=====================================\n");
         return res.status(200).json({
             ResultCode: 0,
             ResultDesc: "Accepted"
